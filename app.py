@@ -1,4 +1,5 @@
 import os
+import io
 import sqlite3
 from flask import Flask, render_template, request, redirect, url_for, send_file, flash
 from flask_socketio import SocketIO, join_room, leave_room, emit
