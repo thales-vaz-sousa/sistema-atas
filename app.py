@@ -984,8 +984,9 @@ if __name__ == "__main__":
     # Inicializar banco
     init_db()
     
-    # Rodar servidor
+    # Rodar servidor - permitir Werkzeug em produção
     socketio.run(app, 
                  host='0.0.0.0', 
                  port=port, 
-                 debug=debug)
+                 debug=debug,
+                 allow_unsafe_werkzeug=True)  # ← LINHA ADICIONADA
