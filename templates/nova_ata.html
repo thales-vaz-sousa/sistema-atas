@@ -51,74 +51,8 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const tipoSelect = document.getElementById('tipo');
-    const dataInput = document.getElementById('data');
-    
-    // Função para encontrar o próximo domingo
-    function getProximoDomingo() {
-        const hoje = new Date();
-        const diasParaDomingo = (7 - hoje.getDay()) % 7 || 7; // 0 = domingo
-        const proximoDomingo = new Date(hoje);
-        proximoDomingo.setDate(hoje.getDate() + diasParaDomingo);
-        return proximoDomingo;
-    }
-    
-    // Função para verificar se é domingo
-    function isDomingo(data) {
-        return new Date(data).getDay() === 0;
-    }
-    
-    // Função para formatar data como YYYY-MM-DD
-    function formatarData(data) {
-        return data.toISOString().split('T')[0];
-    }
-    
-    // Quando o tipo muda
-    tipoSelect.addEventListener('change', function() {
-        if (this.value === 'sacramental') {
-            // Se for sacramental, definir para próximo domingo
-            const proximoDomingo = getProximoDomingo();
-            dataInput.value = formatarData(proximoDomingo);
-            
-            // Adicionar validação para permitir apenas domingos
-            dataInput.min = formatarData(proximoDomingo);
-        } else {
-            // Se for batismo, remover restrições
-            dataInput.min = '';
-            dataInput.value = '{{ data_padrao }}';
-        }
-    });
-    
-    // Validar ao enviar o formulário
-    document.querySelector('form').addEventListener('submit', function(e) {
-        if (tipoSelect.value === 'sacramental' && !isDomingo(dataInput.value)) {
-            e.preventDefault();
-            alert('❌ A Reunião Sacramental deve ser agendada para um domingo!');
-            dataInput.focus();
-        }
-    });
-    
-    // Validar quando a data é alterada manualmente
-    dataInput.addEventListener('change', function() {
-        if (tipoSelect.value === 'sacramental' && !isDomingo(this.value)) {
-            alert('⚠️ A Reunião Sacramental deve ser em um domingo!');
-            
-            // Corrigir automaticamente para o próximo domingo
-            const dataSelecionada = new Date(this.value);
-            const diasParaDomingo = (7 - dataSelecionada.getDay()) % 7;
-            const domingoCorreto = new Date(dataSelecionada);
-            domingoCorreto.setDate(dataSelecionada.getDate() + diasParaDomingo);
-            
-            this.value = formatarData(domingoCorreto);
-        }
-    });
-    
-    // Inicializar com o tipo selecionado (se houver)
-    if (tipoSelect.value === 'sacramental') {
-        const proximoDomingo = getProximoDomingo();
-        dataInput.value = formatarData(proximoDomingo);
-        dataInput.min = formatarData(proximoDomingo);
-    }
+    // Focar no primeiro campo
+    document.getElementById('tipo').focus();
 });
 </script>
 
@@ -128,20 +62,6 @@ document.addEventListener('DOMContentLoaded', function() {
     margin-top: 0.5rem;
     color: var(--church-gray-600);
     font-size: 0.875rem;
-}
-
-.date-info {
-    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-    border-left: 4px solid var(--church-blue);
-    padding: 1rem;
-    margin: 1rem 0;
-    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-    font-size: 0.9rem;
-}
-
-.date-info.domingo {
-    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-    border-left-color: #16a34a;
 }
 
 .alert {
