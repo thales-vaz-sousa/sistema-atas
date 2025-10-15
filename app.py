@@ -15,13 +15,22 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-123')
 
 # Configuração do SocketIO para produção
-socketio = SocketIO(app, 
-                   cors_allowed_origins="*",
-                   async_mode='eventlet')
+
+try:
+    import eventlet
+    socketio = SocketIO(app, 
+                       cors_allowed_origins="*",
+                       async_mode='eventlet')
+except ImportError:
+    # Fallback se eventlet não estiver disponível
+    socketio = SocketIO(app, 
+                       cors_allowed_origins="*",
+                       async_mode='threading')
 
 # Database path para produção
+
 if 'RENDER' in os.environ:
-    DB_PATH = "/var/lib/sqlite/atas.db"
+    DB_PATH = "/opt/render/project/src/database/atas.db"
 else:
     DB_PATH = "database/atas.db"
 
@@ -33,9 +42,12 @@ def get_db():
 def init_db():
     with app.app_context():
         conn = get_db()
-        with open("database/schema.sql") as f:
-            conn.executescript(f.read())
-        conn.commit()
+        try:
+            with open("database/schema.sql") as f:
+                conn.executescript(f.read())
+            conn.commit()
+        except Exception as e:
+            print(f"Erro ao inicializar banco: {e}")
 
 def get_discursantes_recentes():
     """Busca discursantes dos últimos 2 meses"""
