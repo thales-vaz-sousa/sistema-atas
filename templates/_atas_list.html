@@ -1,0 +1,47 @@
+<div class="atas-list-section fade-in">
+    <div class="section-header">
+        <h2>Atas do {{ mes_selecionado_nome }}</h2>
+        <div class="result-count">{{ atas|length }} atas</div>
+    </div>
+    
+    {% if atas and atas|length > 0 %}
+    <div class="info-card">
+        <div class="info-content">
+            <div class="info-icon">📊</div>
+            <div class="info-text">
+                <strong>{{ atas|length }}</strong> atas encontradas para {{ mes_selecionado_nome }}
+            </div>
+        </div>
+    </div>
+    
+    <div class="results-grid">
+        {% for ata in atas %}
+        <div class="ata-card">
+            <div class="ata-header">
+                <div class="ata-type {{ ata.tipo }}">{{ ata.tipo|capitalize }}</div>
+                <div class="ata-date">{{ ata.data }}</div>
+            </div>
+            <div class="ata-body">
+                <div class="ata-status">
+                    <span class="status-badge {{ ata.status|default('completa', true)|lower }}">
+                        {{ ata.status|default('Completa', true) }}
+                    </span>
+                </div>
+            </div>
+            <div class="ata-actions">
+                <a href="{{ url_for('visualizar_ata', ata_id=ata.id) }}" class="btn btn-sm">
+                    👁️ Ver Detalhes
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">📭</div>
+        <h3>Nenhuma ata encontrada</h3>
+        <p>Não há atas registradas para {{ mes_selecionado_nome }}</p>
+        <a href="{{ url_for('nova_ata') }}" class="btn">Criar Primeira Ata</a>
+    </div>
+    {% endif %}
+</div>

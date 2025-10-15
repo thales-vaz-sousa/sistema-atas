@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-card">
+    <h1>Ata {{ ata.tipo.capitalize() }} - {{ ata.data }}</h1>
+    
+    <div class="info-card">
+        <p><strong>Status:</strong> {{ ata.status|default('Completa', true) }}</p>
+    </div>
+
+    {% if ata.tipo == 'sacramental' %}
+    <div class="ata-details">
+        <h2>Detalhes da Reunião Sacramental</h2>
+        
+        <div class="form-group">
+            <label>Presidido por:</label>
+            <div class="info-value">{{ detalhes.presidido or 'Não informado' }}</div>
+        </div>
+        
+        <div class="form-group">
+            <label>Dirigido por:</label>
+            <div class="info-value">{{ detalhes.dirigido or 'Não informado' }}</div>
+        </div>
+
+        <div class="form-group">
+            <label>Pianista:</label>
+            <div class="info-value">{{ detalhes.pianista or 'Não informado' }}</div>
+        </div>
+        
+        <div class="form-group">
+            <label>Regente de Música:</label>
+            <div class="info-value">{{ detalhes.regente_musica or 'Não informado' }}</div>
+        </div>
+
+        <div class="form-group">
+            <label>Anúncios:</label>
+            {% if detalhes.anuncios and detalhes.anuncios|length > 0 %}
+            <ul class="dynamic-list">
+                {% for anuncio in detalhes.anuncios %}
+                    {% if anuncio and anuncio.strip() %}
+                    <li>{{ anuncio }}</li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="info-value">Nenhum anúncio informado</div>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label>Hino de Abertura:</label>
+            <div class="info-value">{{ detalhes.hino_abertura or 'Não informado' }}</div>
+        </div>
+        
+        <div class="form-group">
+            <label>Oração de Abertura:</label>
+            <div class="info-value">{{ detalhes.oracao_abertura or 'Não informado' }}</div>
+        </div>
+
+        <div class="form-group">
+            <label>Hino Sacramental:</label>
+            <div class="info-value">{{ detalhes.hino_sacramental or 'Não informado' }}</div>
+        </div>
+
+        <div class="form-group">
+            <label>Discursantes:</label>
+            {% if detalhes.discursantes and detalhes.discursantes|length > 0 %}
+            <ul class="dynamic-list">
+                {% for d in detalhes.discursantes %}
+                    {% if d and d.strip() %}
+                    <li>{{ d }}</li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="info-value">Nenhum discursante informado</div>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label>Hino Intermediário:</label>
+            <div class="info-value">{{ detalhes.hino_intermediario or 'Não informado' }}</div>
+        </div>
+        
+        <div class="form-group">
+            <label>Hino de Encerramento:</label>
+            <div class="info-value">{{ detalhes.hino_encerramento or 'Não informado' }}</div>
+        </div>
+        
+        <div class="form-group">
+            <label>Oração de Encerramento:</label>
+            <div class="info-value">{{ detalhes.oracao_encerramento or 'Não informado' }}</div>
+        </div>
+    </div>
+    {% else %}
+    <div class="ata-details">
+        <h2>Detalhes do Serviço Batismal</h2>
+        
+        <div class="form-group">
+            <label>Presidido por:</label>
+            <div class="info-value">{{ detalhes.presidido or 'Não informado' }}</div>
+        </div>
+        
+        <div class="form-group">
+            <label>Dirigido por:</label>
+            <div class="info-value">{{ detalhes.dirigido or 'Não informado' }}</div>
+        </div>
+        
+        <div class="form-group">
+            <label>Dedicado a:</label>
+            <div class="info-value">{{ detalhes.dedicado or 'Não informado' }}</div>
+        </div>
+
+        <div class="form-group">
+            <label>Batizados:</label>
+            {% if detalhes.batizados and detalhes.batizados|length > 0 %}
+            <ul class="dynamic-list">
+                {% for b in detalhes.batizados %}
+                    {% if b and b.strip() %}
+                    <li>{{ b }}</li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="info-value">Nenhum batizado informado</div>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label>Testemunha 1:</label>
+            <div class="info-value">{{ detalhes.testemunha1 or 'Não informado' }}</div>
+        </div>
+        
+        <div class="form-group">
+            <label>Testemunha 2:</label>
+            <div class="info-value">{{ detalhes.testemunha2 or 'Não informado' }}</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="form-actions">
+        <a href="{{ url_for('exportar_sacramental_pdf', ata_id=ata.id) }}" class="btn" style="background: linear-gradient(135deg, #004272 0%, #002e5d 100%);">
+            🖨️ Imprimir Ata Sacramental
+        </a>
+        <a href="{{ url_for('editar_ata', ata_id=ata.id) }}" class="btn btn-gold">✏️ Editar Ata</a>
+        <a href="{{ url_for('exportar_pdf', ata_id=ata.id) }}" class="btn">📄 Exportar PDF Simples</a>
+        <a href="{{ url_for('nova_ata') }}" class="btn">📝 Nova Ata</a>
+        <button type="button" onclick="confirmarExclusao({{ ata.id }})" class="btn btn-danger">🗑️ Apagar Ata</button>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">🏠 Voltar</a>
+    </div>
+    
+</div>
+
+<!-- Modal de Confirmação -->
+<div id="modalExclusao" class="modal" style="display: none;">
+    <div class="modal-content">
+        <h3>Confirmar Exclusão</h3>
+        <p>Tem certeza que deseja apagar esta ata? Esta ação não pode ser desfeita.</p>
+        <div class="modal-actions">
+            <button id="confirmarExclusao" class="btn btn-danger">🗑️ Sim, Apagar</button>
+            <button onclick="fecharModal()" class="btn btn-secondary">❌ Cancelar</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let ataIdParaExcluir = null;
+
+function confirmarExclusao(ataId) {
+    ataIdParaExcluir = ataId;
+    document.getElementById('modalExclusao').style.display = 'flex';
+}
+
+function fecharModal() {
+    document.getElementById('modalExclusao').style.display = 'none';
+    ataIdParaExcluir = null;
+}
+
+document.getElementById('confirmarExclusao').addEventListener('click', function() {
+    if (ataIdParaExcluir) {
+        window.location.href = `/ata/excluir/${ataIdParaExcluir}`;
+    }
+});
+
+// Fechar modal ao clicar fora
+document.getElementById('modalExclusao').addEventListener('click', function(e) {
+    if (e.target.id === 'modalExclusao') {
+        fecharModal();
+    }
+});
+</script>
+
+<style>
+.info-value {
+    padding: 0.75rem;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    margin-top: 0.25rem;
+}
+
+.ata-details .form-group {
+    margin-bottom: 1.5rem;
+}
+
+.ata-details label {
+    font-weight: 600;
+    color: var(--church-dark-blue);
+}
+
+.dynamic-list {
+    list-style: none;
+    padding-left: 0;
+}
+
+.dynamic-list li {
+    padding: 0.5rem;
+    background: #f8f9fa;
+    margin-bottom: 0.5rem;
+    border-radius: 4px;
+    border-left: 3px solid var(--church-blue);
+}
+
+/* Botão de perigo */
+.btn-danger {
+    background: #dc3545;
+    border-color: #dc3545;
+}
+
+.btn-danger:hover {
+    background: #c82333;
+    border-color: #bd2130;
+}
+
+/* Modal */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    max-width: 400px;
+    width: 90%;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.modal-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+}
+</style>
+{% endblock %}

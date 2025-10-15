@@ -1,0 +1,357 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="form-container">
+    <!-- Coluna principal do formulário -->
+    <div class="form-column">
+        <div class="content-card">
+            <h1>{% if editar %}Editar{% else %}Nova{% endif %} Reunião Sacramental {{ data }}</h1>
+            
+            <div class="users-count" id="users-count">Usuários editando: 0</div>
+
+            <form method="POST">
+                <input type="hidden" name="tipo" value="sacramental">
+                <input type="hidden" name="data" value="{{ data }}">
+                {% if editar %}
+                <input type="hidden" name="editar" value="{{ editar }}">
+                {% endif %}
+                
+                <!-- 1 - Presidido por -->
+                <div class="form-group">
+                    <label>Presidido por:</label>
+                    <input type="text" name="presidido" placeholder="Nome do presidente" 
+                           value="{{ dados.presidido if dados and dados.presidido else '' }}" 
+                           oninput="syncField(this)">
+                </div>
+                
+                <!-- 2 - Dirigido por -->
+                <div class="form-group">
+                    <label>Dirigido por:</label>
+                    <input type="text" name="dirigido" placeholder="Nome do dirigente" 
+                           value="{{ dados.dirigido if dados and dados.dirigido else '' }}" 
+                           oninput="syncField(this)">
+                </div>
+
+                <!-- NOVO: Pianista -->
+                <div class="form-group">
+                    <label>Pianista:</label>
+                    <input type="text" name="pianista" placeholder="Nome do pianista" 
+                           value="{{ dados.pianista if dados and dados.pianista else '' }}" 
+                           oninput="syncField(this)">
+                </div>
+                
+                <!-- 3 - Regente de Música -->
+                <div class="form-group">
+                    <label>Regente de Música:</label>
+                    <input type="text" name="regente_musica" placeholder="Nome do regente" 
+                           value="{{ dados.regente_musica if dados and dados.regente_musica else '' }}" 
+                           oninput="syncField(this)">
+                </div>
+
+                <!-- NOVO: Anúncios -->
+                <h3>📢 Anúncios</h3>
+                <div id="anuncios" class="dynamic-list">
+                    {% if dados and dados.anuncios %}
+                        {% for anuncio in dados.anuncios %}
+                            {% if anuncio and anuncio.strip() %}
+                            <div class="form-group">
+                                <input type="text" name="anuncios[]" placeholder="Texto do anúncio" 
+                                       value="{{ anuncio }}" oninput="syncField(this)">
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                    <!-- Campo vazio para novo anúncio -->
+                    <div class="form-group">
+                        <input type="text" name="anuncios[]" placeholder="Texto do anúncio" oninput="syncField(this)">
+                    </div>
+                </div>
+                
+                <button type="button" onclick="addAnuncio()" class="btn btn-secondary">+ Adicionar Anúncio</button>
+                
+                <!-- 4 - Hino de Abertura -->
+                <div class="form-group">
+                    <label>Hino de Abertura:</label>
+                    <input type="text" name="hino_abertura" placeholder="Número e nome do hino" 
+                           value="{{ dados.hino_abertura if dados and dados.hino_abertura else '' }}" 
+                           oninput="syncField(this)">
+                </div>
+                
+                <!-- 5 - Oração de Abertura -->
+                <div class="form-group">
+                    <label>Oração de Abertura:</label>
+                    <input type="text" name="oracao_abertura" placeholder="Nome do orador" 
+                           value="{{ dados.oracao_abertura if dados and dados.oracao_abertura else '' }}" 
+                           oninput="syncField(this)">
+                </div>
+
+                <!-- 6 - Hino Sacramental -->
+                <div class="form-group">
+                    <label>Hino Sacramental:</label>
+                    <input type="text" name="hino_sacramental" placeholder="Número e nome do hino sacramental" 
+                           value="{{ dados.hino_sacramental if dados and dados.hino_sacramental else '' }}" 
+                           oninput="syncField(this)">
+                </div>
+
+                <h3>🎤 Discursantes</h3>
+                
+                <!-- 7 - Primeiro Discursante -->
+                <div class="form-group">
+                    <label>Primeiro Discursante:</label>
+                    <input type="text" name="discursantes[]" placeholder="Nome do primeiro discursante" 
+                           value="{{ dados.discursantes[0] if dados and dados.discursantes and dados.discursantes[0] else '' }}" 
+                           oninput="syncField(this)">
+                </div>
+                
+                <!-- 8 - Segundo Discursante -->
+                <div class="form-group">
+                    <label>Segundo Discursante:</label>
+                    <input type="text" name="discursantes[]" placeholder="Nome do segundo discursante" 
+                           value="{{ dados.discursantes[1] if dados and dados.discursantes and dados.discursantes[1] else '' }}" 
+                           oninput="syncField(this)">
+                </div>
+
+                <!-- 9 - Hino Intermediário -->
+                <div class="form-group">
+                    <label>Hino Intermediário:</label>
+                    <input type="text" name="hino_intermediario" placeholder="Número e nome do hino intermediário" 
+                           value="{{ dados.hino_intermediario if dados and dados.hino_intermediario else '' }}" 
+                           oninput="syncField(this)">
+                </div>
+                
+                <!-- 10 - Terceiro Discursante -->
+                <div class="form-group">
+                    <label>Terceiro Discursante:</label>
+                    <input type="text" name="discursantes[]" placeholder="Nome do terceiro discursante" 
+                           value="{{ dados.discursantes[2] if dados and dados.discursantes and dados.discursantes[2] else '' }}" 
+                           oninput="syncField(this)">
+                </div>
+
+                <!-- 11 - Discursantes Adicionais -->
+                <div id="discursantes-adicionais" class="dynamic-list">
+                    {% if dados and dados.discursantes and dados.discursantes|length > 3 %}
+                        {% for i in range(3, dados.discursantes|length) %}
+                            <div class="form-group">
+                                <label>Discursante Adicional {{ i-2 }}:</label>
+                                <input type="text" name="discursantes[]" placeholder="Nome do discursante adicional" 
+                                       value="{{ dados.discursantes[i] }}" oninput="syncField(this)">
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+                
+                <button type="button" onclick="addDiscursante()" class="btn btn-secondary">+ Adicionar Discursante</button>
+
+                <!-- 12 - Hino de Encerramento -->
+                <div class="form-group">
+                    <label>Hino de Encerramento:</label>
+                    <input type="text" name="hino_encerramento" placeholder="Número e nome do hino" 
+                           value="{{ dados.hino_encerramento if dados and dados.hino_encerramento else '' }}" 
+                           oninput="syncField(this)">
+                </div>
+                
+                <!-- 13 - Oração de Encerramento -->
+                <div class="form-group">
+                    <label>Oração de Encerramento:</label>
+                    <input type="text" name="oracao_encerramento" placeholder="Nome do orador" 
+                           value="{{ dados.oracao_encerramento if dados and dados.oracao_encerramento else '' }}" 
+                           oninput="syncField(this)">
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn">{% if editar %}💾 Atualizar{% else %}💾 Salvar{% endif %} Ata</button>
+                    {% if editar %}
+                    <a href="{{ url_for('visualizar_ata', ata_id=editar) }}" class="btn btn-secondary">❌ Cancelar</a>
+                    {% else %}
+                    <a href="{{ url_for('nova_ata') }}" class="btn btn-secondary">📄 Nova Ata</a>
+                    <a href="{{ url_for('index') }}" class="btn btn-secondary">🏠 Cancelar</a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Coluna lateral com discursantes recentes (apenas em modo criação) -->
+    {% if not editar and discursantes_recentes %}
+    <div class="sidebar-column">
+        <div class="content-card">
+            <h3>📊 Discursantes Recentes</h3>
+            <p class="sidebar-subtitle">Últimos 2 meses</p>
+            
+            <div class="discursantes-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Data</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for discursante in discursantes_recentes %}
+                        <tr>
+                            <td>{{ discursante.nome }}</td>
+                            <td>{{ discursante.data }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="sidebar-info">
+                <p><small>💡 Use esta referência para evitar repetições frequentes.</small></p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+<script>
+const socket = io();
+const ataId = "{{ data }}";
+socket.emit('join', { ata_id: ataId });
+
+socket.on('update_users', (data) => {
+    document.getElementById('users-count').innerText = "Usuários editando: " + data.count;
+});
+
+function syncField(el) {
+    socket.emit('field_update', { ata_id: ataId, name: el.name, value: el.value });
+}
+
+socket.on('field_update', (data) => {
+    const field = document.querySelector(`[name="${data.name}"]`);
+    if (field && field.value !== data.value) {
+        field.value = data.value;
+    }
+});
+
+window.addEventListener('beforeunload', () => {
+    socket.emit('leave', { ata_id: ataId });
+});
+
+let discursanteCount = {{ dados.discursantes|length if dados and dados.discursantes else 3 }};
+let anuncioCount = {{ dados.anuncios|length if dados and dados.anuncios else 1 }};
+
+function addDiscursante() {
+    const div = document.getElementById('discursantes-adicionais');
+    const inputDiv = document.createElement('div');
+    inputDiv.className = 'form-group';
+    discursanteCount++;
+    inputDiv.innerHTML = `
+        <label>Discursante Adicional ${discursanteCount - 2}:</label>
+        <input type="text" name="discursantes[]" placeholder="Nome do discursante adicional" oninput="syncField(this)">
+    `;
+    div.appendChild(inputDiv);
+}
+
+function addAnuncio() {
+    const div = document.getElementById('anuncios');
+    const inputDiv = document.createElement('div');
+    inputDiv.className = 'form-group';
+    anuncioCount++;
+    inputDiv.innerHTML = `
+        <input type="text" name="anuncios[]" placeholder="Texto do anúncio" oninput="syncField(this)">
+    `;
+    div.appendChild(inputDiv);
+}
+
+// Preencher campos com dados existentes quando em modo de edição
+{% if editar and dados %}
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Modo edição ativado para ata {{ editar }}');
+});
+{% endif %}
+</script>
+
+<style>
+.form-container {
+    display: flex;
+    gap: 2rem;
+    align-items: flex-start;
+}
+
+.form-column {
+    flex: 1;
+}
+
+.sidebar-column {
+    width: 350px;
+    flex-shrink: 0;
+}
+
+.discursantes-table {
+    margin-top: 1rem;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.discursantes-table table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.discursantes-table th,
+.discursantes-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.discursantes-table th {
+    background: var(--church-light-gray);
+    font-weight: 600;
+    color: var(--church-dark-blue);
+    position: sticky;
+    top: 0;
+}
+
+.discursantes-table tr:hover {
+    background: #f8f9fa;
+}
+
+.sidebar-subtitle {
+    color: var(--church-gray);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.sidebar-info {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #eee;
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 4px;
+}
+
+/* Melhorias para labels */
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--church-dark-blue);
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .form-container {
+        flex-direction: column;
+    }
+    
+    .sidebar-column {
+        width: 100%;
+    }
+    
+    .discursantes-table {
+        max-height: 300px;
+    }
+}
+</style>
+{% endblock %}
