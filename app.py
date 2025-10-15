@@ -214,6 +214,13 @@ def nova_ata():
         tipo = request.form.get("tipo")
         data = request.form.get("data")
         
+        # Validação: Reunião sacramental só pode ser no domingo
+        if tipo == "sacramental":
+            data_obj = datetime.strptime(data, "%Y-%m-%d")
+            if data_obj.weekday() != 6:  # 6 = domingo
+                flash("❌ A Reunião Sacramental deve ser agendada para um domingo!", "error")
+                return render_template("nova_ata.html", data_padrao=data)
+
         # Validação básica
         if not tipo or not data:
             flash("Erro: Tipo e data são obrigatórios", "error")
