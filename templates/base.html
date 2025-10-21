@@ -11,19 +11,29 @@
     <!-- Favicon -->
     <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}" type="image/x-icon">
     <link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.ico') }}" type="image/x-icon">
-    
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <header class="church-header">
-        <div class="header-container">
+    <div class="header-container">
+        {% if session.logged_in %}
             <a href="{{ url_for('index') }}" class="logo">
-                <div class="logo-icon"></div>
+                <div class="logo-icon">⛪</div>
+                <div class="logo-text">Sistema de Atas - {{ session.username }}</div>
+            </a>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <span>Olá, {{ session.username }}</span>
+                <a href="{{ url_for('logout') }}" class="btn btn-sm" style="background: var(--church-gray-600);">
+                    🚪 Sair
+                </a>
+            </div>
+        {% else %}
+            <a href="{{ url_for('login') }}" class="logo">
+                <div class="logo-icon">⛪</div>
                 <div class="logo-text">Sistema de Atas</div>
             </a>
-        </div>
-        
-    </header>
+        {% endif %}
+    </div>
+</header>
 
     <!-- Sistema de Mensagens Flash -->
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -50,72 +60,5 @@
     </footer>
 
     {% block scripts %}{% endblock %}
-
-    <style>
-    .flash-messages {
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        z-index: 1000;
-        max-width: 400px;
-    }
-
-    .flash-message {
-        padding: 1rem 1.5rem;
-        border-radius: var(--radius-sm);
-        margin-bottom: 0.5rem;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-        box-shadow: var(--shadow-lg);
-        animation: slideInRight 0.3s ease-out;
-    }
-
-    .flash-error {
-        background: #fef2f2;
-        border: 1px solid #fecaca;
-        color: #dc2626;
-    }
-
-    .flash-success {
-        background: #f0fdf4;
-        border: 1px solid #bbf7d0;
-        color: #16a34a;
-    }
-
-    .flash-close {
-        background: none;
-        border: none;
-        font-size: 1.5rem;
-        cursor: pointer;
-        color: inherit;
-        padding: 0;
-        width: 24px;
-        height: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    @keyframes slideInRight {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-
-    @media (max-width: 768px) {
-        .flash-messages {
-            left: 20px;
-            right: 20px;
-            max-width: none;
-        }
-    }
-    </style>
 </body>
 </html>

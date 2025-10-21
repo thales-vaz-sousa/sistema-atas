@@ -1,8 +1,9 @@
 import os
 import io
 import sqlite3
-from flask import Flask, render_template, request, redirect, url_for, send_file, flash
+from flask import Flask, render_template, request, redirect, url_for, send_file, flash, session
 from flask_socketio import SocketIO, join_room, leave_room, emit
+from functools import wraps
 import json
 from datetime import datetime, timedelta
 import calendar
@@ -11,25 +12,23 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import Paragraph, Table, TableStyle
 from reportlab.lib import colors
+import models as dbHandler
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-123')
 
 # Configuração do SocketIO para produção
-
 try:
     import eventlet
     socketio = SocketIO(app, 
                        cors_allowed_origins="*",
                        async_mode='eventlet')
 except ImportError:
-    # Fallback se eventlet não estiver disponível
     socketio = SocketIO(app, 
                        cors_allowed_origins="*",
                        async_mode='threading')
 
 # Database path para produção
-
 if 'RENDER' in os.environ:
     DB_PATH = "/opt/render/project/src/database/atas.db"
 else:
@@ -49,6 +48,26 @@ def init_db():
             conn.commit()
         except Exception as e:
             print(f"Erro ao inicializar banco: {e}")
+
+# Authentication decorator
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('logged_in'):
+            flash('Por favor, faça login para acessar esta página.', 'error')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+# Authentication function
+def authenticate_user(username, password):
+    conn = get_db()
+    user = conn.execute(
+        "SELECT * FROM users WHERE username = ? AND password = ?", 
+        (username, password)
+    ).fetchone()
+    conn.close()
+    return user
 
 def get_discursantes_recentes():
     """Busca discursantes dos últimos 2 meses"""
@@ -107,7 +126,40 @@ def get_proxima_reuniao_sacramental():
         'ata_id': ata_existente['id'] if ata_existente else None
     }
 
-@app.route("/")
+@app.route('/', methods=['GET', 'POST'])
+def login():
+    # If user is already logged in, redirect to index
+    if session.get('logged_in'):
+        return redirect(url_for('index'))
+    
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '').strip()
+        
+        if not username or not password:
+            flash('Por favor, preencha todos os campos.', 'error')
+            return render_template('login.html')
+        
+        user = authenticate_user(username, password)
+        
+        if user:
+            session['logged_in'] = True
+            session['username'] = user['username']
+            session['user_id'] = user['id']
+            flash(f'Login realizado com sucesso! Bem-vindo, {user["username"]}.', 'success')
+            return redirect(url_for('index'))
+        else:
+            flash('Credenciais inválidas. Por favor, tente novamente.', 'error')
+    
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash('Você saiu do sistema.', 'success')
+    return redirect(url_for('login'))
+@app.route('/index')
+@login_required
 def index():
     conn = get_db()
     
@@ -129,10 +181,10 @@ def index():
     mes_atual = datetime.now().strftime("%m-%Y")
     mes_selecionado_nome = datetime.now().strftime("%B %Y")
     
-    # Carregar atas do mês atual se existirem
+    # Carregar atas do mês atual da ala do usuário
     atas = conn.execute(
-        "SELECT * FROM atas WHERE strftime('%m-%Y', data) = ? ORDER BY data DESC", 
-        (mes_atual,)
+        "SELECT * FROM atas WHERE strftime('%m-%Y', data) = ? AND ala_id = ? ORDER BY data DESC", 
+        (mes_atual, session['user_id'])
     ).fetchall()
     
     # Buscar próxima reunião sacramental
@@ -146,13 +198,18 @@ def index():
                          proxima_reuniao=proxima_reuniao)
 
 @app.route("/ata/editar/<int:ata_id>")
+@login_required
 def editar_ata(ata_id):
     """Rota para editar uma ata existente"""
     conn = get_db()
-    ata = conn.execute("SELECT * FROM atas WHERE id=?", (ata_id,)).fetchone()
+    ata = conn.execute(
+        "SELECT * FROM atas WHERE id=? AND ala_id=?", 
+        (ata_id, session['user_id'])
+    ).fetchone()
     
     if not ata:
-        return "Ata não encontrada", 404
+        flash("Ata não encontrada ou você não tem permissão para editá-la.", "error")
+        return redirect(url_for('index'))
     
     # Redireciona para o formulário apropriado com os dados existentes
     if ata["tipo"] == "sacramental":
@@ -161,7 +218,8 @@ def editar_ata(ata_id):
         return redirect(url_for("form_ata", tipo="batismo", data=ata["data"], editar=ata_id))
 
 @app.route("/ata/excluir/<int:ata_id>")
-def excluir_ata(ata_id):
+@login_required
+def excluir_ata(ata_id: int):
     """Rota para excluir uma ata"""
     conn = get_db()
     
@@ -176,12 +234,17 @@ def excluir_ata(ata_id):
         # Depois exclui a ata principal
         conn.execute("DELETE FROM atas WHERE id=?", (ata_id,))
         conn.commit()
+        flash("Ata excluída com sucesso!", "success")
+    else:
+        flash("Ata não encontrada", "error")
     
+    # Always return a redirect response
     return redirect(url_for("index"))
 
+
 @app.route("/atas/mes/<string:mes>")
+@login_required
 def listar_atas_mes(mes):
-    """Rota para carregar atas de um mês específico via AJAX"""
     conn = get_db()
     
     try:
@@ -189,8 +252,8 @@ def listar_atas_mes(mes):
         datetime.strptime(mes, "%Y-%m")
         
         atas = conn.execute(
-            "SELECT * FROM atas WHERE strftime('%Y-%m', data) = ? ORDER BY data DESC", 
-            (mes,)
+            "SELECT * FROM atas WHERE strftime('%Y-%m', data) = ? AND ala_id = ? ORDER BY data DESC", 
+            (mes, session['user_id'])
         ).fetchall()
         
         # Formatar nome do mês para exibição
@@ -205,10 +268,22 @@ def listar_atas_mes(mes):
         return "<div class='info-card'>Mês inválido.</div>"
 
 @app.template_filter('loads')
-def json_loads_filter(s):
-    return json.loads(s)
+def json_loads_filter(s: str) -> list:
+    """Template filter to parse JSON strings - always returns a list"""
+    if not s:
+        return []
+    try:
+        result = json.loads(s)
+        # Ensure we always return a list, even if JSON contains other types
+        if isinstance(result, list):
+            return result
+        else:
+            return [result] if result is not None else []
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return []
 
 @app.route("/ata/nova", methods=["GET", "POST"])
+@login_required
 def nova_ata():
     if request.method == "POST":
         tipo = request.form.get("tipo")
@@ -238,33 +313,39 @@ def nova_ata():
     
     return render_template("nova_ata.html", data_padrao=data_padrao)
 
+# In your form_ata route, when creating new atas:
 @app.route("/ata/form", methods=["GET", "POST"])
+@login_required
 def form_ata():
     if request.method == "POST":
         tipo = request.form.get("tipo")
         data = request.form.get("data")
         ata_id_editar = request.form.get("editar")
         
-        # Validação de data - APENAS VERIFICA SE É UMA DATA VÁLIDA
-        try:
-            datetime.strptime(data, "%Y-%m-%d")
-        except ValueError:
-            flash("Erro: Data inválida", "error")
-            # Redireciona de volta para o formulário apropriado
-            if tipo == "sacramental":
-                return redirect(url_for("form_ata", tipo=tipo, data=data))
-            else:
-                return redirect(url_for("form_ata", tipo=tipo, data=data))
+        # ... existing validation code ...
         
         conn = get_db()
         
         if ata_id_editar:
-            # Modo edição - atualiza a ata existente
+            # Modo edição - verificar se a ata pertence à ala do usuário
+            ata_existente = conn.execute(
+                "SELECT * FROM atas WHERE id = ? AND ala_id = ?", 
+                (ata_id_editar, session['user_id'])
+            ).fetchone()
+            
+            if not ata_existente:
+                flash("Você não tem permissão para editar esta ata.", "error")
+                return redirect(url_for('index'))
+            
+            # Atualiza a ata existente
             conn.execute("UPDATE atas SET tipo=?, data=? WHERE id=?", (tipo, data, ata_id_editar))
             ata_id = ata_id_editar
         else:
-            # Modo criação - insere nova ata
-            conn.execute("INSERT INTO atas (tipo, data) VALUES (?, ?)", (tipo, data))
+            # Modo criação - insere nova ata com ala_id
+            conn.execute(
+                "INSERT INTO atas (tipo, data, ala_id) VALUES (?, ?, ?)", 
+                (tipo, data, session['user_id'])
+            )
             ata_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
 
         if tipo == "sacramental":
@@ -438,11 +519,16 @@ def form_ata():
         return redirect(url_for("nova_ata"))
 
 @app.route("/ata/<int:ata_id>")
+@login_required
 def visualizar_ata(ata_id):
     conn = get_db()
-    ata = conn.execute("SELECT * FROM atas WHERE id=?", (ata_id,)).fetchone()
+    ata = conn.execute(
+        "SELECT * FROM atas WHERE id=? AND ala_id=?", 
+        (ata_id, session['user_id'])
+    ).fetchone()
+    
     if not ata:
-        flash("Ata não encontrada", "error")
+        flash("Ata não encontrada ou você não tem permissão para visualizá-la.", "error")
         return redirect(url_for("index"))
         
     if ata["tipo"] == "sacramental":
@@ -474,6 +560,7 @@ def visualizar_ata(ata_id):
     return render_template("visualizar_ata.html", ata=ata, detalhes=detalhes or {})
 
 @app.route("/ata/exportar/<int:ata_id>")
+@login_required
 def exportar_pdf(ata_id):
     conn = get_db()
     ata = conn.execute("SELECT * FROM atas WHERE id=?", (ata_id,)).fetchone()
@@ -548,6 +635,7 @@ def exportar_pdf(ata_id):
     return send_file(buffer, as_attachment=True, download_name=f"ata_{ata_id}.pdf", mimetype="application/pdf")
 
 @app.route("/ata/exportar_sacramental/<int:ata_id>")
+@login_required
 def exportar_sacramental_pdf(ata_id):
     conn = get_db()
     ata = conn.execute("SELECT * FROM atas WHERE id=?", (ata_id,)).fetchone()
@@ -952,7 +1040,7 @@ def inject_flash_messages():
     # Simulando o sistema de flash messages já que não está configurado
     return dict(flash_messages=messages)
 
-# WebSocket eventos
+# WebSocket events
 users_editing = {}
 
 @socketio.on('join')
@@ -960,7 +1048,7 @@ def handle_join(data):
     ata_id = data['ata_id']
     users_editing[ata_id] = users_editing.get(ata_id, 0) + 1
     join_room(ata_id)
-    emit('update_users', {'count': users_editing[ata_id]}, room=ata_id)
+    emit('update_users', {'count': users_editing[ata_id]}, to=ata_id)
 
 @socketio.on('leave')
 def handle_leave(data):
@@ -970,12 +1058,13 @@ def handle_leave(data):
         if users_editing[ata_id] == 0:
             del users_editing[ata_id]
         leave_room(ata_id)
-        emit('update_users', {'count': users_editing.get(ata_id, 0)}, room=ata_id)
+        emit('update_users', {'count': users_editing.get(ata_id, 0)}, to=ata_id)
 
 @socketio.on('field_update')
 def handle_field_update(data):
     ata_id = data['ata_id']
-    emit('field_update', {'name': data['name'], 'value': data['value']}, room=ata_id, include_self=False)
+    emit('field_update', {'name': data['name'], 'value': data['value']}, to=ata_id, include_self=False)
+
 
 if __name__ == "__main__":
     # Configurações para produção

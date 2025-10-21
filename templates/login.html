@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-card fade-in" style="max-width: 400px; margin: 2rem auto;">
+    <div class="header-section">
+        <h1>Login</h1>
+        <p class="subtitle">Sistema de Gestão de Atas</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('login') }}">
+        <div class="form-group">
+            <label for="username">Usuário:</label>
+            <input type="text" name="username" id="username" placeholder="Digite seu usuário" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="password">Senha:</label>
+            <input type="password" name="password" id="password" placeholder="Digite sua senha" required>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn" style="width: 100%; justify-content: center;">
+                🔐 Entrar
+            </button>
+        </div>
+    </form>
+
+    <div style="text-align: center; margin-top: 2rem; color: var(--church-gray-600); font-size: 0.9rem;">
+        <p>Sistema de Gestão de Atas</p>
+        <p><small>Credenciais disponíveis para as alas:</small></p>
+        <p><small>Criciúma 1, Criciúma 2, Criciúma 3, Araranguá, Içara</small></p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('username').focus();
+});
+</script>
+
+<style>
+.alert {
+    padding: 1rem 1.5rem;
+    border-radius: var(--radius-sm);
+    margin-bottom: 1.5rem;
+    border-left: 4px solid;
+}
+
+.alert-error {
+    background: #fef2f2;
+    border-color: #dc2626;
+    color: #dc2626;
+}
+
+.alert-success {
+    background: #f0fdf4;
+    border-color: #16a34a;
+    color: #16a34a;
+}
+</style>
+{% endblock %}
