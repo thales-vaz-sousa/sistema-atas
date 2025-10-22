@@ -704,7 +704,7 @@ def exportar_sacramental_pdf(ata_id):
     data_formatada = data_ata.strftime("%d/%m/%Y")
     
     table_data = [
-        ["ALA CRICIÚMA 1", "ESTACA CRICIÚMA", f"HORÁRIO 8:30 às 10:30", f"DATA {data_formatada}"]
+        ["ALA [nome]", "ESTACA CRICIÚMA", f"HORÁRIO [editar]", f"DATA {data_formatada}"]
     ]
     
     jooj = 125
@@ -728,7 +728,7 @@ def exportar_sacramental_pdf(ata_id):
     # Boas-vindas
     c.setFillColor(colors.black)
     c.setFont("Helvetica", 13)
-    texto_boas_vindas = f"Bom dia irmãos e irmãs! Gostaríamos de fazer todos muito bem vindos a mais uma Reunião Sacramental da ALA CRICIÚMA 1, Estaca Criciúma, neste dia {data_formatada}. Desejamos que todos se sintam bem entre nós, especialmente aqueles que nos visitam."
+    texto_boas_vindas = f"Bom dia irmãos e irmãs! Gostaríamos de fazer todos muito bem vindos a mais uma Reunião Sacramental da ALA [nome], Estaca Criciúma, neste dia {data_formatada}. Desejamos que todos se sintam bem entre nós, especialmente aqueles que nos visitam."
     
     estilo_paragrafo = ParagraphStyle(
         'Normal',
