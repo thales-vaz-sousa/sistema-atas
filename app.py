@@ -119,9 +119,12 @@ def get_proxima_reuniao_sacramental():
         (proximo_domingo.strftime("%Y-%m-%d"),)
     ).fetchone()
     
+    # Formatar data em português
+    data_formatada = proximo_domingo.strftime("%d/%m/%Y")
+    
     return {
         'data': proximo_domingo.strftime("%Y-%m-%d"),
-        'data_formatada': proximo_domingo.strftime("%d/%m/%Y"),
+        'data_formatada': data_formatada,
         'ata_existente': bool(ata_existente),
         'ata_id': ata_existente['id'] if ata_existente else None
     }
@@ -158,19 +161,25 @@ def logout():
     session.clear()
     flash('Você saiu do sistema.', 'success')
     return redirect(url_for('login'))
+
 @app.route('/index')
 @login_required
 def index():
     conn = get_db()
     
-    # Gerar lista de meses para o seletor
+    # Gerar lista de meses para o seletor EM PORTUGUÊS
     meses = []
-
     current_year = datetime.now().year
     current_month = datetime.now().month
     
+    # Nomes dos meses em português
+    meses_ptbr = [
+        '', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    ]
+    
     for month in range(1, 13):
-        month_name = calendar.month_name[month]
+        month_name = meses_ptbr[month]
         month_value = f"{current_year}-{month:02d}"
         meses.append({
             'value': month_value,
@@ -178,12 +187,12 @@ def index():
         })
     
     # Formato do mês atual para seleção automática
-    mes_atual = datetime.now().strftime("%m-%Y")
-    mes_selecionado_nome = datetime.now().strftime("%B %Y")
+    mes_atual = datetime.now().strftime("%Y-%m")
+    mes_selecionado_nome = meses_ptbr[datetime.now().month] + " " + str(datetime.now().year)
     
     # Carregar atas do mês atual da ala do usuário
     atas = conn.execute(
-        "SELECT * FROM atas WHERE strftime('%m-%Y', data) = ? AND ala_id = ? ORDER BY data DESC", 
+        "SELECT * FROM atas WHERE strftime('%Y-%m', data) = ? AND ala_id = ? ORDER BY data DESC", 
         (mes_atual, session['user_id'])
     ).fetchall()
     
@@ -256,9 +265,13 @@ def listar_atas_mes(mes):
             (mes, session['user_id'])
         ).fetchall()
         
-        # Formatar nome do mês para exibição
+        # Formatar nome do mês para exibição EM PORTUGUÊS
+        meses_ptbr = [
+            '', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+            'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+        ]
         data_mes = datetime.strptime(mes, "%Y-%m")
-        mes_nome = data_mes.strftime("%B %Y")
+        mes_nome = meses_ptbr[data_mes.month] + " " + str(data_mes.year)
         
         return render_template("_atas_list.html", 
                              atas=atas, 
