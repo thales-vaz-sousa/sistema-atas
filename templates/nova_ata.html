@@ -1,11 +1,9 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="content-card fade-in">
-    <div class="header-section">
-        <h1>Criar Nova Ata</h1>
-        <p class="subtitle">Selecione o tipo de ata e a data desejada</p>
-    </div>
+<div class="card" style="max-width: 500px;">
+    <h1>Criar Nova Ata</h1>
+    <p class="subtitle">Selecione o tipo de ata e a data desejada</p>
 
     <!-- Mensagens de erro -->
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -19,68 +17,31 @@
     {% endwith %}
 
     <form method="POST">
-        <div class="form-group">
-            <label for="tipo">Tipo de Ata:</label>
-            <div class="select-wrapper">
-                <select name="tipo" id="tipo" required>
-                    <option value="">Selecione o tipo...</option>
-                    <option value="sacramental">Reunião Sacramental</option>
-                    <option value="batismo">Batismo</option>
-                </select>
-            </div>
+        <div style="margin-bottom: 1.5rem;">
+            <label for="tipo" style="display:block; font-size:0.9rem; margin-bottom:0.3rem;">Tipo de Ata:</label>
+            <select name="tipo" id="tipo" style="width:100%; padding:0.75rem; border-radius:var(--radius); border:1px solid #ccc;" required>
+                <option value="">Selecione o tipo...</option>
+                <option value="sacramental">Reunião Sacramental</option>
+                <option value="batismo">Batismo</option>
+            </select>
         </div>
         
-        <div class="form-group">
-            <label for="data">Data da Reunião:</label>
+        <div style="margin-bottom: 2rem;">
+            <label for="data" style="display:block; font-size:0.9rem; margin-bottom:0.3rem;">Data da Reunião:</label>
             <input type="date" name="data" id="data" value="{{ data_padrao }}" required>
-            <small class="help-text">Selecione a data da reunião ou evento</small>
+            <small style="display:block; margin-top:0.5rem; color:#666; font-size:0.875rem;">
+                Selecione a data da reunião ou evento
+            </small>
         </div>
 
-        <div class="form-actions">
-            <button type="submit" class="btn">
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            <button type="submit" style="flex:1; min-width:200px;">
                 📝 Avançar para Formulário
             </button>
-            <a href="{{ url_for('index') }}" class="btn btn-secondary">
+            <a href="{{ url_for('index') }}" style="flex:1; min-width:200px; padding:0.75rem 1rem; border-radius:var(--radius); background:#999; color:#fff; text-decoration:none; text-align:center; font-size:1rem;">
                 🏠 Cancelar
             </a>
         </div>
     </form>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Focar no primeiro campo
-    document.getElementById('tipo').focus();
-});
-</script>
-
-<style>
-.help-text {
-    display: block;
-    margin-top: 0.5rem;
-    color: var(--church-gray-600);
-    font-size: 0.875rem;
-}
-
-.alert {
-    padding: 1rem 1.5rem;
-    border-radius: var(--radius-sm);
-    margin-bottom: 1.5rem;
-    border-left: 4px solid;
-}
-
-.alert-error {
-    background: #fef2f2;
-    border-color: #dc2626;
-    color: #dc2626;
-}
-
-.alert-success {
-    background: #f0fdf4;
-    border-color: #16a34a;
-    color: #16a34a;
-}
-</style>
 {% endblock %}

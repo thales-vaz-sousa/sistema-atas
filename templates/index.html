@@ -1,382 +1,205 @@
 {% extends "base.html" %}
+{% block title %}Atas — Sistema de Gestão{% endblock %}
 
 {% block content %}
-<div class="content-card fade-in">
-    <div class="header-section">
-        <h1>Menu Principal</h1>
-        <p class="subtitle">Gerencie as atas da sua ala de forma simples e organizada</p>
-    </div>
+<div class="card" style="max-width: 960px;">
+  <h1>Atas da Ala</h1>
+  <p class="subtitle">Visualize e gerencie suas atas mensais</p>
+
+  {# =====================
+     Bem-vindo e Ações Rápidas
+  ===================== #}
+  <div class="welcome-section" style="background: rgba(255,255,255,0.9); padding: 2rem; border-radius: var(--radius); margin-bottom: 2rem; text-align: center; border: 1px solid rgba(0,66,114,0.1);">
+    <h2 style="color: var(--accent-color); margin-bottom: 1rem;">Bem-vindo(a)!</h2>
+    <p style="color: #555; margin-bottom: 1.5rem;">Sistema de Gestão de Atas das Alas</p>
     
-    <div class="form-actions">
-        <a href="{{ url_for('nova_ata') }}" class="btn">
-            📝 Criar Nova Ata
-        </a>
+    <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+      <a href="{{ url_for('nova_ata') }}" class="btn-view" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; background: var(--accent-color); color: white; text-decoration: none; border-radius: var(--radius); font-weight: 600; transition: all 0.3s ease;">
+        📝 Criar Nova Ata
+      </a>
+      <a href="#atas" class="btn-view" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; background: #666; color: white; text-decoration: none; border-radius: var(--radius); font-weight: 600; transition: all 0.3s ease;">
+        👁️ Visualizar Atas
+      </a>
+      <a href="{{ url_for('logout') }}" class="btn-view" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; background: #dc3545; color: white; text-decoration: none; border-radius: var(--radius); font-weight: 600; transition: all 0.3s ease;">
+        🚪 Sair
+      </a>
     </div>
+  </div>
 
-    <!-- Próxima Reunião Sacramental -->
-    {% if proxima_reuniao %}
-    <div class="proxima-reuniao-card slide-in">
-        <div class="reuniao-header">
-            <h3>🎯 Próxima Reunião Sacramental</h3>
-            <div class="badge">Próximo</div>
-        </div>
-        <div class="reuniao-info">
-            <div class="reuniao-details">
-                <div class="detail-item">
-                    <span class="detail-label">📅 Data:</span>
-                    <span class="detail-value">{{ proxima_reuniao.data_formatada }}</span>
-                </div>
-                <div class="detail-item">
-                    <span class="detail-label">📊 Status:</span>
-                    <span class="detail-value {% if proxima_reuniao.ata_existente %}status-complete{% else %}status-pending{% endif %}">
-                        {{ 'Ata Criada' if proxima_reuniao.ata_existente else 'Pendente' }}
-                    </span>
-                </div>
-            </div>
-            <div class="reuniao-actions">
-                {% if proxima_reuniao.ata_existente %}
-                <a href="{{ url_for('visualizar_ata', ata_id=proxima_reuniao.ata_id) }}" class="btn btn-gold">
-                    ✏️ Ver Ata Existente
-                </a>
-                {% else %}
-                <a href="{{ url_for('form_ata', tipo='sacramental', data=proxima_reuniao.data) }}" class="btn">
-                    📝 Criar Ata
-                </a>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Seletor de Mês Moderno -->
-    <div class="filter-section">
-        <div class="filter-header">
-            <h3>📅 Visualizar Atas por Mês</h3>
-        </div>
-        <div class="form-group">
-            <label for="mes_selecionado">Selecionar Mês:</label>
-            <div class="select-wrapper">
-                <select id="mes_selecionado" name="mes_selecionado" onchange="carregarAtas(this.value)">
-                    <option value="">Selecione um mês</option>
-                    {% for mes in meses %}
-                    <option value="{{ mes.value }}" {% if mes.value == mes_atual %}selected{% endif %}>
-                        {{ mes.nome }}
-                    </option>
-                    {% endfor %}
-                </select>
-                <div class="select-arrow">▼</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Área onde as atas serão carregadas -->
-    <div id="atas-container" class="atas-container">
-        {% if atas %}
-        <div class="atas-list-section fade-in">
-            <div class="section-header">
-                <h2>Atas do {{ mes_selecionado_nome }}</h2>
-                <div class="result-count">{{ atas|length }} atas encontradas</div>
-            </div>
-            
-            {% if atas %}
-            <div class="results-grid">
-                {% for ata in atas %}
-                <div class="ata-card">
-                    <div class="ata-header">
-                        <div class="ata-type {{ ata.tipo }}">{{ ata.tipo|capitalize }}</div>
-                        <div class="ata-date">{{ ata.data }}</div>
-                    </div>
-                    <div class="ata-body">
-                        <div class="ata-status">
-                            <span class="status-badge {{ ata.status|default('completa', true)|lower }}">
-                                {{ ata.status|default('Completa', true) }}
-                            </span>
-                        </div>
-                    </div>
-                    <div class="ata-actions">
-                        <a href="{{ url_for('visualizar_ata', ata_id=ata.id) }}" class="btn btn-sm">
-                            👁️ Ver Detalhes
-                        </a>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-            {% else %}
-            <div class="empty-state">
-                <div class="empty-icon">📊</div>
-                <h3>Nenhuma ata encontrada</h3>
-                <p>Não há atas registradas para {{ mes_selecionado_nome }}</p>
-                <a href="{{ url_for('nova_ata') }}" class="btn">Criar Primeira Ata</a>
-            </div>
-            {% endif %}
-        </div>
+  {# =====================
+     Próxima reunião
+  ===================== #}
+  {% if proxima_reuniao %}
+  <div class="next-bc">
+    <div class="next-meeting">
+        <h2>📅 Próxima Reunião</h2>
+        <p><strong>{{ proxima_reuniao.data_formatada }}</strong> — Reunião Sacramental</p>
+        {% if proxima_reuniao.ata_existente %}
+        <a href="{{ url_for('visualizar_ata', ata_id=proxima_reuniao.id) }}" class="btn-view">👁️ Ver Detalhes</a>
+        {% else %}
+        <a href="{{ url_for('form_ata', tipo='sacramental', data=proxima_reuniao.data) }}" class="btn-view">📝 Criar Ata</a>
         {% endif %}
     </div>
-</div>
-{% endblock %}
+  </div>
+  {% else %}
+  <div class="next-meeting empty">
+    <h2>📅 Próxima Reunião</h2>
+    <p>Não há reunião programada para o próximo domingo.</p>
+  </div>
+  {% endif %}
 
-{% block scripts %}
-<script>
-function carregarAtas(mes) {
-    if (!mes) {
-        document.getElementById('atas-container').innerHTML = '';
-        return;
-    }
-    
-    // Mostrar loading moderno
-    document.getElementById('atas-container').innerHTML = `
-        <div class="loading-state">
-            <div class="loading-spinner"></div>
-            <span>Carregando atas...</span>
+  {# =====================
+     Filtro de mês - CORRIGIDO
+  ===================== #}
+  <div class="month-selector" id="atas">
+    <label for="mes">Selecionar Mês:</label>
+    <select id="mes" name="mes" onchange="carregarAtasMes(this.value)">
+      {% for mes in meses %}
+        <option value="{{ mes.value }}" {% if mes.value == mes_atual %}selected{% endif %}>{{ mes.nome }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  {# =====================
+     Container para lista de atas (carregado via AJAX)
+  ===================== #}
+  <div id="atas-container">
+    {% if atas and atas|length > 0 %}
+    <div class="atas-grid">
+      {% for ata in atas %}
+        <div class="ata-card">
+          <div class="ata-header">
+            <span class="ata-tipo">{{ ata.tipo|capitalize }}</span>
+            <span class="ata-data">{{ ata.data }}</span>
+          </div>
+          <div class="ata-actions">
+            <a href="{{ url_for('visualizar_ata', ata_id=ata.id) }}" class="btn-view">👁️ Ver Detalhes</a>
+            <a href="{{ url_for('editar_ata', ata_id=ata.id) }}" class="btn-view" style="background: #c8aa76;">✏️ Editar</a>
+          </div>
         </div>
-    `;
-    
-    // Fazer requisição AJAX
-    fetch(`/atas/mes/${mes}`)
-        .then(response => response.text())
-        .then(html => {
-            document.getElementById('atas-container').innerHTML = html;
-        })
-        .catch(error => {
-            console.error('Erro:', error);
-            document.getElementById('atas-container').innerHTML = `
-                <div class="error-state">
-                    <div class="error-icon">⚠️</div>
-                    <h3>Erro ao carregar atas</h3>
-                    <p>Tente novamente em alguns instantes</p>
-                </div>
-            `;
-        });
-}
-
-// Carregar atas do mês atual ao abrir a página
-document.addEventListener('DOMContentLoaded', function() {
-    const mesAtual = "{{ mes_atual }}";
-    if (mesAtual) {
-        setTimeout(() => carregarAtas(mesAtual), 300);
-    }
-});
-</script>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">📭</div>
+      <h3>Nenhuma ata encontrada</h3>
+      <p>Não há atas registradas para {{ mes_nome }}</p>
+      <a href="{{ url_for('nova_ata') }}" class="btn-view">Criar Primeira Ata</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
 
 <style>
-.header-section {
-    text-align: center;
-    margin-bottom: 2rem;
+.welcome-section {
+  background: linear-gradient(135deg, rgba(0,66,114,0.05) 0%, rgba(0,66,114,0.1) 100%);
+  backdrop-filter: blur(10px);
 }
 
-.subtitle {
-    color: var(--church-gray-600);
-    font-size: 1.1rem;
-    margin-top: 0.5rem;
+.welcome-section .btn-view:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
-.filter-section {
-    background: var(--church-gray-100);
-    padding: 2rem;
+.next-bc{
+    background-image: url("/static/img/last_supper.webp");
+    opacity: 0.9;
     border-radius: var(--radius);
-    margin: 2rem 0;
+    background-position: center;
 }
 
-.filter-header {
-    margin-bottom: 1.5rem;
+.next-meeting {
+  background: rgba(255,255,255,0.85);
+  padding: 1.5rem;
+  opacity: 1;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+  margin-bottom: 2rem;
+  text-align: center;
+  /* border-left: 4px solid var(--accent-color); */
 }
 
-.select-wrapper {
-    position: relative;
+.next-meeting.empty {
+  color: #666;
+  border-left: 4px solid #ccc;
 }
-
-.select-wrapper select {
-    appearance: none;
-    padding-right: 3rem;
+.next-meeting h2 {
+  color: var(--accent-color);
+  margin-bottom: 0.5rem;
 }
-
-.select-arrow {
-    position: absolute;
-    right: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    pointer-events: none;
-    color: var(--church-gray-600);
+.month-selector {
+  margin-bottom: 1.5rem;
+  text-align: center;
 }
-
-.section-header {
-    display: flex;
-    justify-content: between;
-    align-items: center;
-    margin-bottom: 2rem;
-    gap: 1rem;
+.month-selector label {
+  font-weight: 600;
+  margin-right: 0.5rem;
 }
-
-.result-count {
-    background: var(--church-blue);
-    color: white;
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-    font-size: 0.9rem;
-    font-weight: 600;
+.month-selector select {
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius);
+  border: 1px solid #ccc;
+  font-size: 1rem;
 }
-
-.results-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1.5rem;
+.atas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.2rem;
 }
-
 .ata-card {
-    background: var(--church-white);
-    border: 1px solid var(--church-gray-200);
-    border-radius: var(--radius-sm);
-    padding: 1.5rem;
-    transition: all 0.3s ease;
+  background: rgba(255,255,255,0.85);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+  transition: all 0.25s ease;
 }
-
 .ata-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-lg);
-    border-color: var(--church-blue);
+  transform: translateY(-4px);
+  background: rgba(255,255,255,0.95);
 }
-
 .ata-header {
-    display: flex;
-    justify-content: between;
-    align-items: start;
-    margin-bottom: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  color: var(--accent-color);
+  margin-bottom: 1rem;
 }
-
-.ata-type {
-    background: var(--church-blue);
-    color: white;
-    padding: 0.25rem 0.75rem;
-    border-radius: 12px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    text-transform: uppercase;
+.btn-view {
+  display: inline-block;
+  margin: 0.25rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  background: var(--accent-color);
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
 }
-
-.ata-type.sacramental {
-    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+.btn-view:hover {
+  background: #00335b;
+  transform: translateY(-1px);
 }
-
-.ata-type.batismo {
-    background: linear-gradient(135deg, #10b981, #047857);
+.empty-state {
+  text-align: center;
+  padding: 2rem 0;
 }
-
-.ata-date {
-    color: var(--church-gray-600);
-    font-size: 0.9rem;
-}
-
-.ata-body {
-    margin-bottom: 1.5rem;
-}
-
-.status-badge {
-    padding: 0.25rem 0.75rem;
-    border-radius: 12px;
-    font-size: 0.8rem;
-    font-weight: 600;
-}
-
-.status-badge.completa {
-    background: #dcfce7;
-    color: #166534;
-}
-
-.status-badge.pendente {
-    background: #fef3c7;
-    color: #92400e;
-}
-
-.ata-actions {
-    display: flex;
-    gap: 0.5rem;
-}
-
-.btn-sm {
-    padding: 0.5rem 1rem;
-    font-size: 0.9rem;
-}
-
-.empty-state, .error-state {
-    text-align: center;
-    padding: 3rem 2rem;
-    color: var(--church-gray-600);
-}
-
-.empty-icon, .error-icon {
-    font-size: 4rem;
-    margin-bottom: 1rem;
-}
-
-.loading-state {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
-    padding: 3rem;
-    color: var(--church-gray-600);
-}
-
-.reuniao-header {
-    display: flex;
-    justify-content: between;
-    align-items: center;
-    margin-bottom: 1.5rem;
-}
-
-.badge {
-    background: var(--church-gold);
-    color: var(--church-gray-800);
-    padding: 0.25rem 0.75rem;
-    border-radius: 12px;
-    font-size: 0.8rem;
-    font-weight: 600;
-}
-
-.reuniao-details {
-    display: grid;
-    gap: 0.75rem;
-}
-
-.detail-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.detail-label {
-    font-weight: 600;
-    color: var(--church-dark-blue);
-}
-
-.detail-value {
-    color: var(--church-gray-600);
-}
-
-.status-complete {
-    color: #166534;
-    font-weight: 600;
-}
-
-.status-pending {
-    color: #dc2626;
-    font-weight: 600;
-}
-
-@media (max-width: 768px) {
-    .section-header {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    
-    .results-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .reuniao-info {
-        flex-direction: column;
-        gap: 1.5rem;
-    }
+.empty-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
 }
 </style>
+
+<script>
+function carregarAtasMes(mes) {
+  fetch(`/atas/mes/${mes}`)
+    .then(response => response.text())
+    .then(html => {
+      document.getElementById('atas-container').innerHTML = html;
+    })
+    .catch(error => {
+      console.error('Erro ao carregar atas:', error);
+      document.getElementById('atas-container').innerHTML = '<div class="empty-state">Erro ao carregar atas</div>';
+    });
+}
+</script>
 {% endblock %}

@@ -70,36 +70,47 @@ def authenticate_user(username, password):
     return user
 
 def get_discursantes_recentes():
-    """Busca discursantes dos últimos 2 meses"""
+    """Busca discursantes dos últimos 3 meses"""
     conn = get_db()
     
-    # Data de 2 meses atrás
-    dois_meses_atras = (datetime.now().replace(day=1) - timedelta(days=60)).strftime("%Y-%m-%d")
+    # Data de 3 meses atrás
+    tres_meses_atras = (datetime.now().replace(day=1) - timedelta(days=90)).strftime("%Y-%m-%d")
     
     discursantes = conn.execute("""
         SELECT s.discursantes, a.data 
         FROM sacramental s 
         JOIN atas a ON s.ata_id = a.id 
-        WHERE a.data >= ? AND a.tipo = 'sacramental'
+        WHERE a.data >= ? AND a.tipo = 'sacramental' AND a.ala_id = ?
         ORDER BY a.data DESC
-    """, (dois_meses_atras,)).fetchall()
+    """, (tres_meses_atras, session['user_id'])).fetchall()
     
     # Processar e consolidar discursantes
     todos_discursantes = []
+    nomes_ja_adicionados = set()  # Para evitar duplicatas
+    
     for row in discursantes:
         if row['discursantes']:
             try:
                 discursantes_lista = json.loads(row['discursantes'])
                 for discursante in discursantes_lista:
                     if discursante and discursante.strip():
-                        todos_discursantes.append({
-                            'nome': discursante.strip(),
-                            'data': row['data']
-                        })
+                        nome_limpo = discursante.strip()
+                        # Evitar duplicatas
+                        if nome_limpo not in nomes_ja_adicionados:
+                            # Formatar data para exibição
+                            data_obj = datetime.strptime(row['data'], "%Y-%m-%d")
+                            data_formatada = data_obj.strftime("%d/%m/%Y")
+                            
+                            todos_discursantes.append({
+                                'nome': nome_limpo,
+                                'data': data_formatada
+                            })
+                            nomes_ja_adicionados.add(nome_limpo)
             except json.JSONDecodeError:
                 continue
     
-    return todos_discursantes
+    # Limitar a 20 discursantes mais recentes
+    return todos_discursantes[:20]
 
 def get_proxima_reuniao_sacramental():
     """Encontra a data da próxima reunião sacramental"""
@@ -108,9 +119,9 @@ def get_proxima_reuniao_sacramental():
     # Encontrar próximo domingo
     dias_para_domingo = (6 - hoje.weekday()) % 7
     if dias_para_domingo == 0:  # Se hoje é domingo
-        dias_para_domingo = 7
-    
-    proximo_domingo = hoje + timedelta(days=dias_para_domingo)
+        proximo_domingo = hoje
+    else:
+        proximo_domingo = hoje + timedelta(days=dias_para_domingo)
     
     # Verificar se já existe ata para esta data
     conn = get_db()
@@ -122,12 +133,15 @@ def get_proxima_reuniao_sacramental():
     # Formatar data em português
     data_formatada = proximo_domingo.strftime("%d/%m/%Y")
     
-    return {
-        'data': proximo_domingo.strftime("%Y-%m-%d"),
-        'data_formatada': data_formatada,
-        'ata_existente': bool(ata_existente),
-        'ata_id': ata_existente['id'] if ata_existente else None
-    }
+    if ata_existente:
+        return {
+            'data': proximo_domingo.strftime("%Y-%m-%d"),
+            'data_formatada': data_formatada,
+            'ata_existente': True,
+            'id': ata_existente['id']
+        }
+    else:
+        return None
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -188,7 +202,7 @@ def index():
     
     # Formato do mês atual para seleção automática
     mes_atual = datetime.now().strftime("%Y-%m")
-    mes_selecionado_nome = meses_ptbr[datetime.now().month] + " " + str(datetime.now().year)
+    mes_nome = meses_ptbr[datetime.now().month] + " " + str(datetime.now().year)  # CORREÇÃO: Definir mes_nome
     
     # Carregar atas do mês atual da ala do usuário
     atas = conn.execute(
@@ -199,12 +213,15 @@ def index():
     # Buscar próxima reunião sacramental
     proxima_reuniao = get_proxima_reuniao_sacramental()
     
-    return render_template("index.html", 
-                         meses=meses, 
-                         mes_atual=mes_atual,
-                         mes_selecionado_nome=mes_selecionado_nome,
-                         atas=atas,
-                         proxima_reuniao=proxima_reuniao)
+    return render_template(
+        "index.html",
+        meses=meses,
+        mes_atual=mes_atual,
+        mes_nome=mes_nome,  # AGORA ESTÁ DEFINIDA
+        atas=atas,
+        proxima_reuniao=proxima_reuniao
+    )
+
 
 @app.route("/ata/editar/<int:ata_id>")
 @login_required
@@ -335,7 +352,17 @@ def form_ata():
         data = request.form.get("data")
         ata_id_editar = request.form.get("editar")
         
-        # ... existing validation code ...
+        # Validação básica
+        if not tipo or not data:
+            flash("Erro: Tipo e data são obrigatórios", "error")
+            return redirect(url_for('nova_ata'))
+        
+        # Validação de data
+        try:
+            datetime.strptime(data, "%Y-%m-%d")
+        except ValueError:
+            flash("Erro: Data inválida", "error")
+            return redirect(url_for('nova_ata'))
         
         conn = get_db()
         
