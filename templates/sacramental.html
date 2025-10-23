@@ -94,7 +94,7 @@
        <!-- SEÇÃO DE DISCURSANTES COM CAMPOS DINÂMICOS -->
 <div style="margin-bottom: 2rem; padding: 1.5rem; background: #f8f9fa; border-radius: var(--radius);">
   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-    <h3 style="color: var(--accent-color); margin: 0;">🎤 Discursantes</h3>
+    <h3 style="color: var(--accent-color); margin: 0;"><i class="fa-user-friends"></i> Discursantes</h3>
     <button type="button" onclick="addDiscursante()" style="background: #666; color: white; border: none; padding: 0.5rem 1rem; border-radius: var(--radius); cursor: pointer; font-size: 0.9rem;">
       + Adicionar Discursante
     </button>
@@ -135,18 +135,18 @@
         <!-- BOTÕES DE AÇÃO -->
         <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
           <button type="submit" style="flex:1; min-width:200px;">
-            💾 {% if editar %}Atualizar{% else %}Salvar{% endif %} Ata
+            <i class="fa fa-save"></i> {% if editar %}Atualizar{% else %}Salvar{% endif %} Ata
           </button>
           {% if editar %}
           <a href="{{ url_for('visualizar_ata', ata_id=editar) }}" style="flex:1; min-width:200px; padding:0.75rem 1rem; border-radius:var(--radius); background:#999; color:#fff; text-decoration:none; text-align:center;">
-            ❌ Cancelar
+            <i class="fa fa-reply"></i> Voltar
           </a>
           {% else %}
           <a href="{{ url_for('nova_ata') }}" style="flex:1; min-width:200px; padding:0.75rem 1rem; border-radius:var(--radius); background:#666; color:#fff; text-decoration:none; text-align:center;">
-            📄 Nova Ata
+            <i class="fa fa-clipboard"></i> Nova Ata
           </a>
           <a href="{{ url_for('index') }}" style="flex:1; min-width:200px; padding:0.75rem 1rem; border-radius:var(--radius); background:#999; color:#fff; text-decoration:none; text-align:center;">
-            🏠 Cancelar
+            <i class="fa fa-folder"></i> Cancelar
           </a>
           {% endif %}
         </div>

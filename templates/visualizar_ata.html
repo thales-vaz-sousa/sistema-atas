@@ -155,23 +155,23 @@
     <div style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;">
         {% if ata.tipo == 'sacramental' %}
         <a href="{{ url_for('exportar_sacramental_pdf', ata_id=ata.id) }}" class="btn-action" style="background: var(--accent-color);">
-            🖨️ Imprimir Ata Sacramental
+            <i class="fa fa-print"></i> Imprimir Ata
         </a>
         {% endif %}
         <a href="{{ url_for('editar_ata', ata_id=ata.id) }}" class="btn-action" style="background: #c8aa76;">
-            ✏️ Editar Ata
+            <i class="fa fa-edit"></i>Editar
         </a>
         <a href="{{ url_for('exportar_pdf', ata_id=ata.id) }}" class="btn-action" style="background: #666;">
-            📄 Exportar PDF Simples
+            <i class="fa fa-print"></i> Exportar PDF Simples
         </a>
         <a href="{{ url_for('nova_ata') }}" class="btn-action" style="background: var(--accent-color);">
-            📝 Nova Ata
+            <i class="	fas fa-clipboard"></i> Nova Ata
         </a>
         <button type="button" onclick="confirmarExclusao({{ ata.id }})" class="btn-action" style="background: #dc3545; border: none; cursor: pointer;">
-            🗑️ Apagar Ata
+            <i class="fa fa-trash"></i> Apagar
         </button>
         <a href="{{ url_for('index') }}" class="btn-action" style="background: #999;">
-            🏠 Voltar
+            <i class="fa fa-folder"></i> Voltar
         </a>
     </div>
 </div>
@@ -182,8 +182,8 @@
         <h3 style="color:var(--accent-color); margin-bottom:1rem;">Confirmar Exclusão</h3>
         <p style="margin-bottom:1.5rem;">Tem certeza que deseja apagar esta ata? Esta ação não pode ser desfeita.</p>
         <div style="display:flex; gap:1rem; justify-content:flex-end;">
-            <button id="confirmarExclusao" class="btn-action" style="background:#dc3545;">🗑️ Sim, Apagar</button>
-            <button onclick="fecharModal()" class="btn-action" style="background:#999;">❌ Cancelar</button>
+            <button id="confirmarExclusao" class="btn-action" style="background:#dc3545;">Sim, Apagar</button>
+            <button onclick="fecharModal()" class="btn-action" style="background:#999;">Cancelar</button>
         </div>
     </div>
 </div>
@@ -199,7 +199,6 @@
     border-radius: var(--radius);
     font-weight: 600;
     transition: all 0.3s ease;
-    min-width: 200px;
     justify-content: center;
     text-align: center;
 }
