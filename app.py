@@ -1080,16 +1080,19 @@ def handle_field_update(data):
 
 
 if __name__ == "__main__":
-    # Configurações para produção
-    port = int(os.environ.get('PORT', 5000))
-    debug = os.environ.get('DEBUG', 'False').lower() == 'true'
-    
-    # Inicializar banco
-    init_db()
-    
-    # Rodar servidor - permitir Werkzeug em produção
-    socketio.run(app, 
-                 host='0.0.0.0', 
-                 port=port, 
-                 debug=debug,
-                 allow_unsafe_werkzeug=True)  # ← LINHA ADICIONADA
+    # Don't run the server on PythonAnywhere
+    if 'PYTHONANYWHERE_DOMAIN' in os.environ:
+        print("Running on PythonAnywhere - WSGI will handle the server")
+        # The WSGI server will handle the app
+    else:
+        # Only run manually for local development
+        port = int(os.environ.get('PORT', 5001))
+        debug = os.environ.get('DEBUG', 'False').lower() == 'true'
+        
+        init_db()
+        
+        socketio.run(app, 
+                     host='0.0.0.0', 
+                     port=port,
+                     debug=debug,
+                     allow_unsafe_werkzeug=True)
