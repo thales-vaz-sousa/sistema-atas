@@ -1,7 +1,7 @@
 import os
 import io
 import sqlite3
-from flask import Flask, render_template, request, redirect, url_for, send_file, flash, session
+from flask import Flask, render_template, request, redirect, url_for, send_file, flash, session, jsonify
 from flask_socketio import SocketIO, join_room, leave_room, emit
 from functools import wraps
 import json
@@ -72,6 +72,265 @@ def authenticate_user(username, password):
     ).fetchone()
     conn.close()
     return user
+
+# ==================================================================
+# Rotas de Configurações
+# ==================================================================
+
+# Rota para configurações
+@app.route("/configuracoes")
+@login_required
+def configuracoes():
+    conn = get_db()
+    
+    # Buscar templates
+    templates = conn.execute("SELECT * FROM templates").fetchall()
+    templates = [dict(template) for template in templates]
+    
+    # Buscar informações da unidade
+    unidade = conn.execute(
+        "SELECT * FROM unidades WHERE ala_id = ?", 
+        (session['user_id'],)
+    ).fetchone()
+    if unidade:
+        unidade = dict(unidade)
+    else:
+        unidade = {}
+    
+    # Buscar estatísticas
+    total_atas = conn.execute(
+        "SELECT COUNT(*) FROM atas WHERE ala_id = ?", 
+        (session['user_id'],)
+    ).fetchone()[0]
+    
+    atas_sacramentais = conn.execute(
+        "SELECT COUNT(*) FROM atas WHERE ala_id = ? AND tipo = 'sacramental'", 
+        (session['user_id'],)
+    ).fetchone()[0]
+    
+    atas_batismo = conn.execute(
+        "SELECT COUNT(*) FROM atas WHERE ala_id = ? AND tipo = 'batismo'", 
+        (session['user_id'],)
+    ).fetchone()[0]
+    
+    # Atas deste mês
+    mes_atual = datetime.now().strftime("%Y-%m")
+    atas_mes = conn.execute(
+        "SELECT COUNT(*) FROM atas WHERE ala_id = ? AND strftime('%Y-%m', data) = ?", 
+        (session['user_id'], mes_atual)
+    ).fetchone()[0]
+    
+    conn.close()
+    
+    return render_template(
+        "configuracoes.html",
+        templates=templates,
+        unidade=unidade,
+        total_atas=total_atas,
+        atas_sacramentais=atas_sacramentais,
+        atas_batismo=atas_batismo,
+        atas_mes=atas_mes
+    )
+
+# Rota para salvar configurações da ala
+@app.route("/configuracoes/ala/salvar", methods=["POST"])
+@login_required
+def salvar_configuracoes_ala():
+    conn = get_db()
+    
+    nome_ala = request.form.get("nome_ala")
+    bispo = request.form.get("bispo")
+    conselheiros = request.form.get("conselheiros")
+    horario = request.form.get("horario")
+    estaca = request.form.get("estaca")
+    
+    # Verificar se já existe registro para esta ala
+    unidade_existente = conn.execute(
+        "SELECT * FROM unidades WHERE ala_id = ?", 
+        (session['user_id'],)
+    ).fetchone()
+    
+    if unidade_existente:
+        # Atualizar
+        conn.execute("""
+            UPDATE unidades 
+            SET nome = ?, bispo = ?, conselheiros = ?, horario = ?, estaca = ?
+            WHERE ala_id = ?
+        """, (nome_ala, bispo, conselheiros, horario, estaca, session['user_id']))
+    else:
+        # Inserir
+        conn.execute("""
+            INSERT INTO unidades (ala_id, nome, bispo, conselheiros, horario, estaca)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (session['user_id'], nome_ala, bispo, conselheiros, horario, estaca))
+    
+    conn.commit()
+    conn.close()
+    
+    flash("Configurações da ala salvas com sucesso!", "success")
+    return redirect(url_for("configuracoes"))
+
+# Rota para editar template
+@app.route("/configuracoes/template/<int:template_id>")
+@login_required
+def editar_template(template_id):
+    conn = get_db()
+    template = conn.execute(
+        "SELECT * FROM templates WHERE id = ?", 
+        (template_id,)
+    ).fetchone()
+    
+    if template:
+        template = dict(template)
+        conn.close()
+        return render_template("_editar_template.html", template=template)
+    else:
+        conn.close()
+        return "Template não encontrado", 404
+
+# Rota para salvar template
+@app.route("/configuracoes/template/<int:template_id>/salvar", methods=["POST"])
+@login_required
+def salvar_template(template_id):
+    conn = get_db()
+    
+    try:
+        # Buscar todos os campos do formulário
+        campos = {
+            'nome': request.form.get('nome'),
+            'boas_vindas': request.form.get('boas_vindas'),
+            'desobrigacoes': request.form.get('desobrigacoes'),
+            'apoios': request.form.get('apoios'),
+            'confirmacoes_batismo': request.form.get('confirmacoes_batismo'),
+            'apoio_membro_novo': request.form.get('apoio_membro_novo'),
+            'bencao_crianca': request.form.get('bencao_crianca'),
+            'sacramento': request.form.get('sacramento'),
+            'mensagens': request.form.get('mensagens'),
+            'live': request.form.get('live'),
+            'encerramento': request.form.get('encerramento')
+        }
+        
+        # Atualizar template
+        conn.execute("""
+            UPDATE templates SET
+            nome = ?, boas_vindas = ?, desobrigacoes = ?, apoios = ?, 
+            confirmacoes_batismo = ?, apoio_membro_novo = ?, bencao_crianca = ?,
+            sacramento = ?, mensagens = ?, live = ?, encerramento = ?
+            WHERE id = ?
+        """, (
+            campos['nome'], campos['boas_vindas'], campos['desobrigacoes'],
+            campos['apoios'], campos['confirmacoes_batismo'], campos['apoio_membro_novo'],
+            campos['bencao_crianca'], campos['sacramento'], campos['mensagens'],
+            campos['live'], campos['encerramento'], template_id
+        ))
+        
+        conn.commit()
+        conn.close()
+        
+        flash("Template atualizado com sucesso!", "success")
+        return redirect(url_for("configuracoes"))
+        
+    except Exception as e:
+        conn.close()
+        print(f"Erro ao salvar template: {e}")
+        flash("Erro ao salvar template", "error")
+        return redirect(url_for("configuracoes"))
+
+# Rota para criar novo template
+@app.route("/configuracoes/template/criar", methods=["POST"])
+@login_required
+def criar_template():
+    conn = get_db()
+    
+    try:
+        # Buscar dados do formulário
+        nome = request.form.get('nome')
+        tipo_template = request.form.get('tipo_template')
+        
+        # Inserir novo template com valores padrão
+        conn.execute("""
+            INSERT INTO templates (tipo_template, nome, boas_vindas, desobrigacoes, apoios, 
+            confirmacoes_batismo, apoio_membro_novo, bencao_crianca, sacramento, mensagens, live, encerramento)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            tipo_template,
+            nome,
+            "Bom dia irmãos e irmãs! Gostaríamos de fazer todos muito bem vindos...",
+            "É proposto dar um voto de agradecimento aos serviços prestados...",
+            "O(a) irmã(o) [NOME] está sendo chamado(a) como [CHAMADO]...",
+            "O(a) irmã(o) [NOME] foram batizados, gostaríamos de convida-los(a)...",
+            "O(a) irmã(o) [NOME] foi batizado e confirmado membro da igreja...",
+            "Gostaríamos de chamar ao púlpito o irmão [NOME] que irá dar a benção...",
+            "Passaremos ao Sacramento, que é a parte mais importante de nossa reunião...",
+            "Agradecemos a todos pela reverência durante o Sacramento...",
+            "Gostaria de lembrar todos que estejam assistindo a transmissão...",
+            "Agradecemos a presença e participação de todos..."
+        ))
+        
+        conn.commit()
+        conn.close()
+        
+        flash("Novo template criado com sucesso!", "success")
+        return redirect(url_for("configuracoes"))
+        
+    except Exception as e:
+        conn.close()
+        print(f"Erro ao criar template: {e}")
+        flash("Erro ao criar template", "error")
+        return redirect(url_for("configuracoes"))
+    
+# Rota para apagar template
+@app.route("/configuracoes/template/<int:template_id>/apagar", methods=["POST"])
+@login_required
+def apagar_template(template_id):
+    conn = get_db()
+    
+    try:
+        # Verificar se o template existe
+        template = conn.execute(
+            "SELECT * FROM templates WHERE id = ?", 
+            (template_id,)
+        ).fetchone()
+        
+        if not template:
+            return jsonify({
+                'success': False,
+                'message': 'Template não encontrado'
+            }), 404
+        
+        # Não permitir apagar todos os templates - manter pelo menos um de cada tipo
+        templates_restantes = conn.execute(
+            "SELECT COUNT(*) FROM templates WHERE tipo_template = ?", 
+            (template['tipo_template'],)
+        ).fetchone()[0]
+        
+        if templates_restantes <= 1:
+            return jsonify({
+                'success': False,
+                'message': 'Não é possível apagar o último template deste tipo'
+            }), 400
+        
+        # Apagar o template
+        conn.execute("DELETE FROM templates WHERE id = ?", (template_id,))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Template apagado com sucesso!'
+        })
+        
+    except Exception as e:
+        conn.close()
+        print(f"Erro ao apagar template: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Erro interno ao apagar template'
+        }), 500
+
+# ==================================================================
+# Rotas principais do sistema de atas
+# ==================================================================
 
 # Aba de discursantes recentes na criação de atas sacramentais
 def get_discursantes_recentes():
@@ -229,6 +488,84 @@ def index():
         mes_nome=mes_nome,  # AGORA ESTÁ DEFINIDA
         atas=atas,
         proxima_reuniao=proxima_reuniao
+    )
+
+# Rota para visualizar todas as atas
+@app.route("/atas")
+@login_required
+def listar_todas_atas():
+    conn = get_db()
+    
+    # Buscar todas as atas da ala, ordenadas da mais recente para a mais antiga
+    atas = conn.execute("""
+        SELECT a.*, s.tema 
+        FROM atas a 
+        LEFT JOIN sacramental s ON a.id = s.ata_id 
+        WHERE a.ala_id = ? 
+        ORDER BY a.data DESC
+    """, (session['user_id'],)).fetchall()
+    
+    # Buscar discursantes dos últimos 3 meses
+    tres_meses_atras = (datetime.now().replace(day=1) - timedelta(days=90)).strftime("%Y-%m-%d")
+    
+    discursantes_recentes = conn.execute("""
+        SELECT s.discursantes, a.data, s.tema
+        FROM sacramental s 
+        JOIN atas a ON s.ata_id = a.id 
+        WHERE a.data >= ? AND a.tipo = 'sacramental' AND a.ala_id = ?
+        ORDER BY a.data DESC
+    """, (tres_meses_atras, session['user_id'])).fetchall()
+    
+    # Processar discursantes
+    todos_discursantes = []
+    nomes_ja_adicionados = set()
+    
+    for row in discursantes_recentes:
+        if row['discursantes']:
+            try:
+                discursantes_lista = json.loads(row['discursantes'])
+                for discursante in discursantes_lista:
+                    if discursante and discursante.strip():
+                        nome_limpo = discursante.strip()
+                        if nome_limpo not in nomes_ja_adicionados:
+                            data_obj = datetime.strptime(row['data'], "%Y-%m-%d")
+                            data_formatada = data_obj.strftime("%d/%m/%Y")
+                            
+                            todos_discursantes.append({
+                                'nome': nome_limpo,
+                                'data': data_formatada,
+                                'tema': row['tema'] or 'Sem tema definido'
+                            })
+                            nomes_ja_adicionados.add(nome_limpo)
+            except json.JSONDecodeError:
+                continue
+    
+    # Buscar temas dos últimos 3 meses
+    temas_recentes = conn.execute("""
+        SELECT s.tema, a.data 
+        FROM sacramental s 
+        JOIN atas a ON s.ata_id = a.id 
+        WHERE a.data >= ? AND a.tipo = 'sacramental' AND a.ala_id = ? AND s.tema IS NOT NULL AND s.tema != ''
+        ORDER BY a.data DESC
+    """, (tres_meses_atras, session['user_id'])).fetchall()
+    
+    temas_formatados = []
+    for tema in temas_recentes:
+        if tema['tema']:
+            data_obj = datetime.strptime(tema['data'], "%Y-%m-%d")
+            data_formatada = data_obj.strftime("%d/%m/%Y")
+            temas_formatados.append({
+                'tema': tema['tema'],
+                'data': data_formatada
+            })
+    
+    conn.close()
+    
+    return render_template(
+        "todas_atas.html",
+        atas=atas,
+        discursantes_recentes=todos_discursantes[:20],  # Limitar a 20
+        temas_recentes=temas_formatados
     )
 
 # Rota para editar uma ata existente
@@ -409,57 +746,88 @@ def form_ata():
             # Filtrar anúncios vazios
             anuncios = [a for a in anuncios if a and a.strip()]
             
+            # NOVOS CAMPOS ADICIONADOS AQUI
             detalhes = {
                 "presidido": request.form.get("presidido", ""),
                 "dirigido": request.form.get("dirigido", ""),
-                "pianista": request.form.get("pianista", ""),  # NOVO CAMPO
+                "recepcionistas": request.form.get("recepcionistas", ""),  # NOVO
+                "tema": request.form.get("tema", ""), 
+                "pianista": request.form.get("pianista", ""),
                 "regente_musica": request.form.get("regente_musica", ""),
-                "anuncios": anuncios,  # NOVO CAMPO
+                "reconhecemos_presenca": request.form.get("reconhecemos_presenca", ""),  # NOVO
+                "anuncios": anuncios,
                 "hino_abertura": request.form.get("hino_abertura", ""),
                 "oracao_abertura": request.form.get("oracao_abertura", ""),
+                "desobrigacoes": request.form.get("desobrigacoes", ""),  # NOVO
+                "apoios": request.form.get("apoios", ""),  # NOVO
+                "confirmacoes_batismo": request.form.get("confirmacoes_batismo", ""),  # NOVO
+                "apoio_membros": request.form.get("apoio_membros", ""),  # NOVO
+                "bencao_criancas": request.form.get("bencao_criancas", ""),  # NOVO
                 "hino_sacramental": request.form.get("hino_sacramental", ""),
                 "hino_intermediario": request.form.get("hino_intermediario", ""),
+                "ultimo_discursante": request.form.get("ultimo_discursante", ""),  # NOVO
                 "hino_encerramento": request.form.get("hino_encerramento", ""),
                 "oracao_encerramento": request.form.get("oracao_encerramento", ""),
                 "discursantes": discursantes
             }
             
             if ata_id_editar:
-                # Atualiza registro existente
+                # Atualiza registro existente COM NOVOS CAMPOS
                 conn.execute("""
                     UPDATE sacramental 
-                    SET presidido=?, dirigido=?, pianista=?, regente_musica=?, anuncios=?, hinos=?, oracoes=?, discursantes=?, hino_sacramental=?, hino_intermediario=?
+                    SET presidido=?, dirigido=?, recepcionistas=?, pianista=?, regente_musica=?, 
+                        reconhecemos_presenca=?, anuncios=?, hinos=?, oracoes=?, discursantes=?, 
+                        hino_sacramental=?, hino_intermediario=?, desobrigacoes=?, apoios=?, 
+                        confirmacoes_batismo=?, apoio_membros=?, bencao_criancas=?, ultimo_discursante=?
                     WHERE ata_id=?
                 """, (
                     detalhes["presidido"], 
                     detalhes["dirigido"],
-                    detalhes["pianista"],  # NOVO
+                    detalhes["recepcionistas"],  # NOVO
+                    detalhes["pianista"],
                     detalhes["regente_musica"],
-                    json.dumps(detalhes["anuncios"]),  # NOVO
+                    detalhes["reconhecemos_presenca"],  # NOVO
+                    json.dumps(detalhes["anuncios"]),
                     json.dumps([detalhes["hino_abertura"], detalhes["hino_encerramento"]]), 
                     json.dumps([detalhes["oracao_abertura"], detalhes["oracao_encerramento"]]), 
                     json.dumps(detalhes["discursantes"]),
                     detalhes["hino_sacramental"],
                     detalhes["hino_intermediario"],
+                    detalhes["desobrigacoes"],  # NOVO
+                    detalhes["apoios"],  # NOVO
+                    detalhes["confirmacoes_batismo"],  # NOVO
+                    detalhes["apoio_membros"],  # NOVO
+                    detalhes["bencao_criancas"],  # NOVO
+                    detalhes["ultimo_discursante"],  # NOVO
                     ata_id
                 ))
             else:
-                # Insere novo registro
+                # Insere novo registro COM NOVOS CAMPOS
                 conn.execute("""
-                    INSERT INTO sacramental (ata_id, presidido, dirigido, pianista, regente_musica, anuncios, hinos, oracoes, discursantes, hino_sacramental, hino_intermediario) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO sacramental (ata_id, presidido, dirigido, recepcionistas, pianista, regente_musica, 
+                        reconhecemos_presenca, anuncios, hinos, oracoes, discursantes, hino_sacramental, hino_intermediario,
+                        desobrigacoes, apoios, confirmacoes_batismo, apoio_membros, bencao_criancas, ultimo_discursante) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     ata_id, 
                     detalhes["presidido"], 
                     detalhes["dirigido"],
-                    detalhes["pianista"],  # NOVO
+                    detalhes["recepcionistas"],  # NOVO
+                    detalhes["pianista"],
                     detalhes["regente_musica"],
-                    json.dumps(detalhes["anuncios"]),  # NOVO
+                    detalhes["reconhecemos_presenca"],  # NOVO
+                    json.dumps(detalhes["anuncios"]),
                     json.dumps([detalhes["hino_abertura"], detalhes["hino_encerramento"]]), 
                     json.dumps([detalhes["oracao_abertura"], detalhes["oracao_encerramento"]]), 
                     json.dumps(detalhes["discursantes"]),
                     detalhes["hino_sacramental"],
-                    detalhes["hino_intermediario"]
+                    detalhes["hino_intermediario"],
+                    detalhes["desobrigacoes"],  # NOVO
+                    detalhes["apoios"],  # NOVO
+                    detalhes["confirmacoes_batismo"],  # NOVO
+                    detalhes["apoio_membros"],  # NOVO
+                    detalhes["bencao_criancas"],  # NOVO
+                    detalhes["ultimo_discursante"]  # NOVO
                 ))
         
         elif tipo == "batismo":
@@ -584,33 +952,78 @@ def visualizar_ata(ata_id):
         flash("Ata não encontrada ou você não tem permissão para visualizá-la.", "error")
         return redirect(url_for("index"))
         
+    # Buscar template padrão para sacramental
+    template = None
+    if ata["tipo"] == "sacramental":
+        # Tente diferentes formas de buscar o template
+        template = conn.execute(
+            "SELECT * FROM templates WHERE nome = 'Sacramental Padrão'"
+        ).fetchone()
+        
+        if not template:
+            template = conn.execute(
+                "SELECT * FROM templates WHERE tipo_template = 1"
+            ).fetchone()
+        
+        if template:
+            template = dict(template)
+            print(f"DEBUG: Template carregado - {template.get('nome', 'Sem nome')}")
+    
     if ata["tipo"] == "sacramental":
         detalhes = conn.execute("SELECT * FROM sacramental WHERE ata_id=?", (ata_id,)).fetchone()
         if detalhes:
             # Converter para dicionário para facilitar o acesso
             detalhes_dict = dict(detalhes)
             if detalhes_dict.get('hinos'):
-                hinos = json.loads(detalhes_dict['hinos'])
-                detalhes_dict['hino_abertura'] = hinos[0] if len(hinos) > 0 else ''
-                detalhes_dict['hino_encerramento'] = hinos[1] if len(hinos) > 1 else ''
+                try:
+                    hinos = json.loads(detalhes_dict['hinos'])
+                    detalhes_dict['hino_abertura'] = hinos[0] if len(hinos) > 0 else ''
+                    detalhes_dict['hino_encerramento'] = hinos[1] if len(hinos) > 1 else ''
+                except:
+                    detalhes_dict['hino_abertura'] = ''
+                    detalhes_dict['hino_encerramento'] = ''
+                    
             if detalhes_dict.get('oracoes'):
-                oracoes = json.loads(detalhes_dict['oracoes'])
-                detalhes_dict['oracao_abertura'] = oracoes[0] if len(oracoes) > 0 else ''
-                detalhes_dict['oracao_encerramento'] = oracoes[1] if len(oracoes) > 1 else ''
+                try:
+                    oracoes = json.loads(detalhes_dict['oracoes'])
+                    detalhes_dict['oracao_abertura'] = oracoes[0] if len(oracoes) > 0 else ''
+                    detalhes_dict['oracao_encerramento'] = oracoes[1] if len(oracoes) > 1 else ''
+                except:
+                    detalhes_dict['oracao_abertura'] = ''
+                    detalhes_dict['oracao_encerramento'] = ''
+                    
             if detalhes_dict.get('discursantes'):
-                detalhes_dict['discursantes'] = json.loads(detalhes_dict['discursantes'])
+                try:
+                    detalhes_dict['discursantes'] = json.loads(detalhes_dict['discursantes'])
+                except:
+                    detalhes_dict['discursantes'] = []
+                    
             if detalhes_dict.get('anuncios'):
-                detalhes_dict['anuncios'] = json.loads(detalhes_dict['anuncios'])
+                try:
+                    detalhes_dict['anuncios'] = json.loads(detalhes_dict['anuncios'])
+                except:
+                    detalhes_dict['anuncios'] = []
+                    
             detalhes = detalhes_dict
+        else:
+            detalhes = {}
     else:
         detalhes = conn.execute("SELECT * FROM batismo WHERE ata_id=?", (ata_id,)).fetchone()
         if detalhes:
             detalhes_dict = dict(detalhes)
             if detalhes_dict.get('batizados'):
-                detalhes_dict['batizados'] = json.loads(detalhes_dict['batizados'])
+                try:
+                    detalhes_dict['batizados'] = json.loads(detalhes_dict['batizados'])
+                except:
+                    detalhes_dict['batizados'] = []
             detalhes = detalhes_dict
+        else:
+            detalhes = {}
     
-    return render_template("visualizar_ata.html", ata=ata, detalhes=detalhes or {})
+    conn.close()
+    
+    return render_template("visualizar_ata.html", ata=ata, detalhes=detalhes, template=template)
+
 
 # Rota para exportar ata como PDF simples (em desenvolvimento, ajustando para ser dinamica com cada ala)
 @app.route("/ata/exportar/<int:ata_id>")

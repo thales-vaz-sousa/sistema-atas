@@ -129,3 +129,12 @@ CREATE INDEX IF NOT EXISTS idx_atas_data ON atas(data);
 CREATE INDEX IF NOT EXISTS idx_atas_tipo ON atas(tipo);
 CREATE INDEX IF NOT EXISTS idx_sacramental_ata_id ON sacramental(ata_id);
 CREATE INDEX IF NOT EXISTS idx_batismo_ata_id ON batismo(ata_id);
+
+ALTER TABLE sacramental ADD COLUMN recepcionistas TEXT;
+ALTER TABLE sacramental ADD COLUMN reconhecemos_presenca TEXT;
+ALTER TABLE sacramental ADD COLUMN desobrigacoes TEXT;
+ALTER TABLE sacramental ADD COLUMN apoios TEXT;
+ALTER TABLE sacramental ADD COLUMN confirmacoes_batismo TEXT;
+ALTER TABLE sacramental ADD COLUMN apoio_membros TEXT;
+ALTER TABLE sacramental ADD COLUMN bencao_criancas TEXT;
+ALTER TABLE sacramental ADD COLUMN ultimo_discursante TEXT;
